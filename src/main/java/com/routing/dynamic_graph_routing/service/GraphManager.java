@@ -47,6 +47,15 @@ public class GraphManager {
         }
     }
 
+    public Map<String, IntersectionNode> getAllNodes() {
+        rwLock.readLock().lock();
+        try {
+            return Collections.unmodifiableMap(new HashMap<>(nodes));
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+
     public List<RoadEdge> getNeighbors(String nodeId) {
         rwLock.readLock().lock();
         try {
