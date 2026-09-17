@@ -1,5 +1,6 @@
 package com.routing.dynamic_graph_routing.model;
 
+import com.routing.dynamic_graph_routing.util.DistanceCalculator;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -17,10 +18,14 @@ public class IntersectionNode {
     private final double latitude;
     private final double longitude;
 
-    // Calculate the Euclidean distance between this node and another node. Euclidean distance is a straight-line distance between two points in Euclidean space. Euclidean distance acts as ADMISSIBLE h(n) in A* algorithm.
-    public double distanceTo(IntersectionNode other) { 
-        double deltaLat = this.latitude - other.latitude;  
-        double deltaLon = this.longitude - other.longitude; 
-        return Math.sqrt(deltaLat * deltaLat + deltaLon * deltaLon); // heuristic value h(n) 
+    /**
+     * Calculates (true) straight-line distance in kilometers using the HAVERSINE formula.
+     * Acts as the admissible heuristic h(n) in the A* algorithm.
+     */
+    public double distanceTo(IntersectionNode other) {
+        return DistanceCalculator.haversineDistanceKm(
+                this.latitude, this.longitude,
+                other.latitude, other.longitude
+        );
     }
 }
