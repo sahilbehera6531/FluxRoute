@@ -1,0 +1,27 @@
+{
+  "intersections": [
+    { "id": "NODE_BORIVALI", "name": "Borivali National Park Junction", "latitude": 19.2288, "longitude": 72.8575 },
+    { "id": "NODE_GOREGAON", "name": "Goregaon WEH Junction", "latitude": 19.1663, "longitude": 72.8526 },
+    { "id": "NODE_ANDHERI_WEH", "name": "Andheri Flyover WEH", "latitude": 19.1197, "longitude": 72.8468 },
+    { "id": "NODE_BANDRA_BKC", "name": "Bandra-Kurla Complex Connector", "latitude": 19.0607, "longitude": 72.8540 },
+    { "id": "NODE_JVLR_WEST", "name": "WEH - JVLR Junction", "latitude": 19.1368, "longitude": 72.8596 },
+    { "id": "NODE_POWAI", "name": "Powai Lake Commercial Hub", "latitude": 19.1238, "longitude": 72.9126 },
+    { "id": "NODE_BKC_SCLR", "name": "Santacruz-Chembur Link Road Entry", "latitude": 19.0726, "longitude": 72.8710 },
+    { "id": "NODE_THANE_EEH", "name": "Thane Toll Plaza EEH", "latitude": 19.1872, "longitude": 72.9723 },
+    { "id": "NODE_KANJURMARG_EEH", "name": "Kanjurmarg EEH Junction", "latitude": 19.1314, "longitude": 72.9350 },
+    { "id": "NODE_KURLA_EEH", "name": "Kurla Priyadarshini Circle EEH", "latitude": 19.0565, "longitude": 72.8888 }
+  ],
+  "roads": [
+    { "id": "EDGE_BORI_GORE", "sourceNodeId": "NODE_BORIVALI", "targetNodeId": "NODE_GOREGAON", "baseDistanceKm": 8.2, "speedLimitKmh": 60.0, "bidirectional": true },
+    { "id": "EDGE_GORE_JVLR", "sourceNodeId": "NODE_GOREGAON", "targetNodeId": "NODE_JVLR_WEST", "baseDistanceKm": 4.1, "speedLimitKmh": 50.0, "bidirectional": true },
+    { "id": "EDGE_JVLR_ANDH", "sourceNodeId": "NODE_JVLR_WEST", "targetNodeId": "NODE_ANDHERI_WEH", "baseDistanceKm": 2.8, "speedLimitKmh": 45.0, "bidirectional": true },
+    { "id": "EDGE_ANDH_BKC", "sourceNodeId": "NODE_ANDHERI_WEH", "targetNodeId": "NODE_BANDRA_BKC", "baseDistanceKm": 8.6, "speedLimitKmh": 55.0, "bidirectional": true },
+    { "id": "EDGE_JVLR_POWAI", "sourceNodeId": "NODE_JVLR_WEST", "targetNodeId": "NODE_POWAI", "baseDistanceKm": 7.1, "speedLimitKmh": 40.0, "bidirectional": true },
+    { "id": "EDGE_POWAI_KANJ", "sourceNodeId": "NODE_POWAI", "targetNodeId": "NODE_KANJURMARG_EEH", "baseDistanceKm": 3.6, "speedLimitKmh": 45.0, "bidirectional": true },
+    { "id": "EDGE_THANE_KANJ", "sourceNodeId": "NODE_THANE_EEH", "targetNodeId": "NODE_KANJURMARG_EEH", "baseDistanceKm": 8.5, "speedLimitKmh": 65.0, "bidirectional": true },
+    { "id": "EDGE_KANJ_KURLA", "sourceNodeId": "NODE_KANJURMARG_EEH", "targetNodeId": "NODE_KURLA_EEH", "baseDistanceKm": 9.8, "speedLimitKmh": 65.0, "bidirectional": true },
+    { "id": "EDGE_BKC_SCLR", "sourceNodeId": "NODE_BANDRA_BKC", "targetNodeId": "NODE_BKC_SCLR", "baseDistanceKm": 2.9, "speedLimitKmh": 40.0, "bidirectional": false },        
+    { "id": "EDGE_SCLR_KURLA", "sourceNodeId": "NODE_BKC_SCLR", "targetNodeId": "NODE_KURLA_EEH", "baseDistanceKm": 3.7, "speedLimitKmh": 50.0, "bidirectional": true },
+    { "id": "EDGE_POWAI_SCLR_DIAGONAL", "sourceNodeId": "NODE_POWAI", "targetNodeId": "NODE_BKC_SCLR", "baseDistanceKm": 7.5, "speedLimitKmh": 35.0, "bidirectional": true }
+  ]
+}   
