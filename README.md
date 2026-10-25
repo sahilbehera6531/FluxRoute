@@ -33,8 +33,19 @@ The core problem is therefore:
 
 > **How can a routing system efficiently handle dynamic road-network changes and reroute only the vehicles that are actually affected, while continuing to serve a large number of active vehicles?**
 
+## Scope
 
+The project focuses specifically on:
 
+> **Dynamic road-network changes and efficient rerouting of active vehicles.**
+
+It is not intended to be a complete commercial logistics platform.
+
+Features such as large-scale GIS visualization, real-world traffic prediction, weather prediction, fleet business operations, and external logistics integrations are outside the core scope.
+
+The objective is to build and measure the **routing and concurrency engine underneath such a system**.
+
+---
 
 
 ## Solution
