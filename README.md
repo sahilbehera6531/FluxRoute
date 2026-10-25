@@ -1,403 +1,193 @@
 # Dynamic Graph Routing Engine
 
-A routing system for dynamically changing road networks that efficiently reroutes affected vehicles when roads become unavailable during active trips.
+A Java 21 and Spring Boot routing engine that models a changing road network,
+tracks active vehicle routes, and selectively reroutes only the vehicles
+affected by a road disruption.
 
-## Problem
+## What the project implements
 
-Consider a logistics network with thousands of vehicles travelling simultaneously across a road network.
-
-Each vehicle has an active route from its current location to its destination.
-
-Now suppose a road suddenly becomes unavailable because of a:
-
-* Landslide
-* Flood
-* Damaged bridge
-* Accident
-* Road closure
-* Other temporary disruption
-
-A shortest-path algorithm can calculate a new route for a vehicle.
-
-The harder problem is managing this when **the road network and thousands of active vehicle routes are changing at the same time**.
-
-A naive approach would recalculate the route for every vehicle whenever the road network changes.
-
-That creates unnecessary computation.
-
-If a closed road is not part of a vehicle's route, that vehicle does not need to be rerouted at all.
-
-At the same time, vehicles continuously send location and telemetry updates, creating a large number of concurrent I/O operations.
-
-The core problem is therefore:
-
-> **How can a routing system efficiently handle dynamic road-network changes and reroute only the vehicles that are actually affected, while continuing to serve a large number of active vehicles?**
-
----
-
-## Solution
-
-This project builds a routing engine around a **dynamic in-memory road graph** and a set of active vehicle routes.
-
-When a road becomes unavailable, the system:
-
-1. Updates the road network.
-2. Determines which active routes are affected.
-3. Selects only those vehicles for rerouting.
-4. Recalculates their paths through the updated graph.
-5. Makes the updated routes available to the affected vehicles.
-
-Conceptually:
+The application keeps an in-memory weighted directed graph:
 
 ```text
-                 Road Disruption
-                        │
-                        ▼
-              Update Road Network
-                        │
-                        ▼
-              Find Affected Routes
-                        │
-                        ▼
-               Recalculate Paths
-                        │
-                        ▼
-               Updated Vehicle Routes
+IntersectionNode = road junction
+RoadEdge         = directed road
+Weight           = distance adjusted by traffic
 ```
 
-The important part is that **a network change does not automatically trigger a complete fleet-wide recomputation**.
+The graph is loaded from
+[`src/main/resources/data/map-data.json`](src/main/resources/data/map-data.json).
+Roads can be closed or assigned a traffic multiplier while the application is
+running.
 
----
+When a disruption is received, the engine:
 
-## Example
+1. Updates the affected edge.
+2. Uses an inverted index to find vehicles whose current routes use that edge.
+3. Runs A* for only those affected vehicles.
+4. Stores the newly calculated routes.
+5. Reports the rerouting latency.
 
-Suppose the current road network is:
+Vehicles whose routes do not use the disrupted edge are not recalculated.
 
-```text
-A ─── B ─── C ─── D
-      │
-      E ─── F
-```
+## Real-world interpretation
 
-A vehicle is currently following:
+This represents a simplified fleet-routing backend. For example, if flooding
+closes one directed road segment, the service finds delivery vehicles
+currently scheduled to use that segment and calculates alternative routes for
+those vehicles. The project simulates vehicle state and REST requests; it does
+not connect to physical vehicles or receive live GPS telemetry.
 
-```text
-A → B → C → D
-```
+## Routing algorithm
 
-Now suppose the road between `B` and `C` becomes unavailable:
-
-```text
-A ─── B     C ─── D
-      │
-      E ─── F
-```
-
-The existing route is no longer valid.
-
-The system identifies that the vehicle's route contains the affected road and recalculates a new path through the available network.
-
-A different vehicle whose route does not contain the blocked road does **not** need to be recalculated.
-
-```text
-Road X becomes unavailable
-          │
-          ▼
-   ┌─────────────────┐
-   │ Check active    │
-   │ vehicle routes  │
-   └────────┬────────┘
-            │
-       ┌────┴────┐
-       │         │
-   Route uses   Route does not
-   Road X       use Road X
-       │         │
-       ▼         ▼
-   Reroute     No change
-```
-
-This selective rerouting is a central part of the system.
-
----
-
-## Core Design
-
-The system deals with two different types of workload.
-
-### Vehicle Communication — I/O Bound
-
-Vehicles continuously communicate with the routing system by sending location or telemetry information and receiving route updates.
-
-The project uses **Java Virtual Threads** to support a large number of concurrent vehicle operations without requiring a heavyweight platform thread for every active vehicle.
-
-The objective is to make the communication layer capable of handling many simultaneous connections efficiently.
-
----
-
-### Route Calculation — CPU Bound
-
-Finding a path through a graph is computational work.
-
-When a disruption affects many vehicles, multiple route calculations may need to happen at the same time.
-
-These calculations are therefore treated separately from the I/O workload and executed using **bounded CPU parallelism**.
-
-The important design principle is:
-
-```text
-Vehicle Connections
-        │
-        │ I/O-bound
-        ▼
-   Virtual Threads
-
-
-Route Calculations
-        │
-        │ CPU-bound
-        ▼
- Bounded Parallelism
-```
-
-Virtual Threads are not used as a generic solution for CPU-bound work.
-
----
-
-## Dynamic Road Network
-
-The road network is represented as a weighted graph.
-
-Conceptually:
-
-```text
-Node = Location / Junction
-
-Edge = Road connecting two locations
-
-Weight = Cost of travelling through that road
-```
-
-An edge can change its availability:
-
-```text
-AVAILABLE
-    │
-    │ disruption
-    ▼
-BLOCKED
-    │
-    │ road restored
-    ▼
-AVAILABLE
-```
-
-The routing algorithm must always operate on the current valid state of the network.
-
-This makes the graph different from a conventional static shortest-path problem: **the graph itself can change while vehicles are using it.**
-
----
-
-## Route Calculation
-
-The project explores shortest-path algorithms for calculating routes through the dynamic graph.
-
-### Dijkstra's Algorithm
-
-Dijkstra's algorithm can be used to find the minimum-cost path between two nodes when edge weights are non-negative.
-
-```text
-Source
-  │
-  ▼
-Explore lowest-cost node
-  │
-  ▼
-Relax neighbouring edges
-  │
-  ▼
-Continue until destination
-  │
-  ▼
-Shortest path
-```
-
-### A* Search
-
-A* can additionally use a heuristic to guide the search toward the destination.
+[`PathfindingService`](src/main/java/com/routing/dynamic_graph_routing/service/PathfindingService.java)
+implements A* search:
 
 ```text
 f(n) = g(n) + h(n)
 ```
 
-where:
+* `g(n)` is the accumulated dynamic road cost.
+* `h(n)` is a geographic-distance heuristic.
+* Blocked edges are skipped.
+* Traffic multipliers increase an edge's effective cost.
 
-* `g(n)` is the cost from the source to node `n`
-* `h(n)` estimates the remaining cost to the destination
-* `f(n)` determines the search priority
+Dijkstra's algorithm is discussed as background in the original design, but a
+separate Dijkstra implementation is not currently included.
 
-The final choice of routing algorithm and its role in the system will depend on experimentation and benchmarking.
+## Concurrency and thread safety
 
----
-
-## Concurrent Fleet
-
-To evaluate the system under realistic load, the project includes a fleet simulation component.
-
-The simulator is intended to reproduce the behaviour of many active vehicles:
+The implemented concurrency model separates shared-state protection from CPU
+parallelism:
 
 ```text
-Vehicle
-   │
-   ├── Connect
-   │
-   ├── Send location updates
-   │
-   ├── Receive route
-   │
-   ├── Continue travelling
-   │
-   └── Receive updated route after disruption
+Graph and fleet state
+    -> ReentrantReadWriteLock and ConcurrentHashMap
+
+Affected-vehicle A* calculations
+    -> CompletableFuture and bounded fixed platform-thread pool
 ```
 
-The purpose is not simply to demonstrate that one vehicle can be rerouted.
+[`DynamicRerouteEngine`](src/main/java/com/routing/dynamic_graph_routing/service/DynamicRerouteEngine.java)
+creates a fixed-size `ExecutorService`. Each affected vehicle is submitted as
+a `CompletableFuture` task, and the disruption request waits for all submitted
+reroutes to finish.
 
-The goal is to study how the routing system behaves when **many vehicles are active simultaneously and a network disruption affects a subset of them**.
+[`GraphManager`](src/main/java/com/routing/dynamic_graph_routing/service/GraphManager.java)
+uses `ReentrantReadWriteLock` so graph reads can happen concurrently while
+edge updates are exclusive. [`FleetManager`](src/main/java/com/routing/dynamic_graph_routing/service/FleetManager.java)
+uses concurrent collections for the active-vehicle registry and
+road-to-vehicle index.
 
----
+The route calculations are CPU-bound and use platform threads. The project
+does not currently use virtual threads, WebSockets, GPS ingestion, or a
+ForkJoinPool.
 
-## Key Engineering Problems
+The only explicit file I/O is the one-time startup load of
+`map-data.json` in
+[`MapDataLoader`](src/main/java/com/routing/dynamic_graph_routing/service/MapDataLoader.java).
 
-### 1. Selective Rerouting
+## REST simulation API
 
-A road disruption should not cause unnecessary route calculations.
+[`RoutingSimulationController`](src/main/java/com/routing/dynamic_graph_routing/controller/RoutingSimulationController.java)
+exposes:
 
-The system needs a way to determine which active routes are actually affected.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/simulation/init-fleet?count=50` | Create simulated vehicles and initial routes |
+| `POST` | `/api/simulation/disrupt` | Close a road or change its traffic multiplier |
+| `POST` | `/api/simulation/step` | Move each vehicle one hop along its route |
+| `GET` | `/api/simulation/vehicles` | Inspect active vehicle state |
+| `GET` | `/api/simulation/edge-traffic` | Inspect vehicles assigned to an edge |
 
----
+Example disruption body:
 
-### 2. Dynamic Graph State
+```json
+{
+  "fromNodeId": "NODE_JVLR_WEST",
+  "toNodeId": "NODE_POWAI",
+  "blocked": true,
+  "congestionFactor": 0.0,
+  "description": "Monsoon flooding simulation"
+}
+```
 
-The road network can change while route calculations and vehicle updates are taking place.
+The API is request/response REST. It does not provide a persistent vehicle
+connection or server-pushed route updates.
 
-The system therefore needs a well-defined approach to maintaining and accessing the current graph state.
+## Benchmark
 
----
+[`SimulationEngineTest`](src/test/java/com/routing/dynamic_graph_routing/SimulationEngineTest.java)
+contains the large-fleet disruption test. The test:
 
-### 3. Concurrent Route Calculation
+1. Creates 5,000,000 simulated vehicles.
+2. Calculates an initial route for each vehicle.
+3. Selects a directed edge that has assigned vehicles.
+4. Blocks that single edge.
+5. Reroutes the vehicles indexed on that edge.
+6. Verifies that the blocked edge has no vehicles assigned afterward.
+7. Verifies that rerouted routes do not still contain the blocked edge.
 
-A single disruption may affect many vehicles.
+The test prefers `NODE_JVLR_WEST -> NODE_POWAI`. If no vehicles are assigned
+to that edge, it scans the node pairs and selects the first directed edge
+with at least one assigned vehicle.
 
-Independent route calculations can potentially execute concurrently, but the amount of CPU parallelism must remain bounded.
-
----
-
-### 4. Concurrent Vehicle Communication
-
-Vehicle telemetry continues while routing calculations are happening.
-
-The communication workload should therefore not be unnecessarily blocked by CPU-intensive pathfinding.
-
----
-
-### 5. Correctness Under Change
-
-A route should be calculated against a valid representation of the road network.
-
-The system must account for situations where network changes occur while previous rerouting work is still being processed.
-
----
-
-## What This Project Is Really About
-
-The shortest-path algorithm itself is not the main challenge.
-
-The interesting problem is putting graph algorithms inside a continuously changing, concurrent system.
-
-The project brings together:
+One recorded run reported:
 
 ```text
-Dynamic Graphs
-      +
-Shortest-Path Algorithms
-      +
-Concurrent Networking
-      +
-CPU-Bound Computation
-      +
-Real-Time State Changes
+Fleet size:              5,000,000
+Affected vehicles:       667,811
+Rerouting latency:       3,480 ms
+Test result:              passed
 ```
 
-The central question is:
+These numbers describe one local run and one single-edge disruption. They are
+not a universal throughput guarantee. The affected count is produced by the
+deterministic vehicle initialization seed, the graph topology, the generated
+origin/destination pairs, and the selected edge. It is not manually chosen.
 
-> **How can a routing system remain responsive when both the road network and the fleet using it are continuously changing?**
+## What is not included
 
----
+The following items belong to the broader original design but are not
+implemented in the current repository:
 
-## Performance Evaluation
+* WebSocket telemetry or GPS ingestion
+* Virtual-thread vehicle communication
+* ForkJoinPool-based route execution
+* Live physical-vehicle integration
+* Server-pushed route updates
+* A benchmark comparing sequential and concurrent execution
+* Repeated performance trials with warmup, percentiles, and resource metrics
+* Concurrent telemetry during rerouting
+* Versioning or queuing for overlapping disruption events
+* Production persistence, authentication, observability, and deployment
 
-The system will be evaluated experimentally rather than relying on theoretical claims.
-
-The experiments will focus on questions such as:
-
-* How does rerouting time change as the number of affected vehicles increases?
-* How much unnecessary computation can selective rerouting avoid?
-* How does concurrent route computation compare with sequential processing?
-* How does the system behave while vehicle telemetry continues during rerouting?
-* How does routing performance change as the road graph grows?
-* What are the CPU and memory costs under increasing fleet sizes?
-
-Benchmark results will be added here once they are measured.
-
----
+These omissions do not make the project incomplete for its current scope. It
+is a focused in-memory routing and concurrency simulation rather than a
+commercial fleet platform.
 
 ## Technology
 
-The implementation is being developed primarily with:
-
-* **Java 21**
-* **Spring Boot**
-* **Java Virtual Threads**
-* **Graph data structures and shortest-path algorithms**
-* **Concurrent programming utilities**
-* **In-memory state management**
-* **Vehicle/fleet simulation**
-
-The technology choices are driven by the requirements of the problem rather than being the objective of the project.
-
----
+* Java 21
+* Spring Boot 3.4.2
+* Spring MVC REST
+* A* pathfinding
+* Mutable adjacency-list graph
+* `ReentrantReadWriteLock`
+* `ConcurrentHashMap`
+* `CompletableFuture`
+* Bounded fixed platform-thread pool
+* In-memory fleet simulation
+* JUnit and Spring Boot testing
 
 ## Scope
 
-The project focuses specifically on:
-
-> **Dynamic road-network changes and efficient rerouting of active vehicles.**
-
-It is not intended to be a complete commercial logistics platform.
-
-Features such as large-scale GIS visualization, real-world traffic prediction, weather prediction, fleet business operations, and external logistics integrations are outside the core scope.
-
-The objective is to build and measure the **routing and concurrency engine underneath such a system**.
-
----
-
-## Future Work
-
-Potential extensions after the core system is working include:
-
-* More efficient route-impact detection
-* Route caching and invalidation
-* Incremental shortest-path algorithms
-* Larger geographical road graphs
-* ETA estimation
-* Priority-based rerouting
-* Fault-tolerant vehicle reconnection
-* Distributed route computation
-
-These will be considered only after the core routing engine has been implemented and benchmarked.
-
----
+The project focuses on dynamic road-network changes, selective rerouting, and
+bounded concurrent route computation. GIS visualization, live traffic
+prediction, weather prediction, business fleet operations, and external
+logistics integrations are outside the scope.
 
 ## Status
 
-**ON IT**
+Core dynamic-routing and large-fleet simulation are implemented. The REST
+simulation and recorded benchmark are available; live telemetry and
+virtual-thread communication are intentionally outside the current scope.
