@@ -4,7 +4,7 @@ A routing system for dynamically changing road networks that efficiently reroute
 
 ## Problem
 
-Consider a logistics network with thousands of vehicles travelling simultaneously across a road network.
+Consider a logistics network with millions of simulated vehicles travelling across a road network.
 
 Each vehicle has an active route from its current location to its destination.
 
@@ -26,8 +26,6 @@ A naive approach would recalculate the route for every vehicle whenever the road
 That creates unnecessary computation.
 
 If a closed road is not part of a vehicle's route, that vehicle does not need to be rerouted at all.
-
-At the same time, vehicles continuously send location and telemetry updates, creating a large number of concurrent I/O operations.
 
 The core problem is therefore:
 
