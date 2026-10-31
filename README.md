@@ -2,6 +2,36 @@
 
 A routing system for dynamically changing road networks that efficiently reroutes affected vehicles when roads become unavailable during active trips.
 
+## SIH 2026 Context and Project Focus
+
+This project was inspired by **Smart India Hackathon (SIH) 2026 Problem Statement SIH26002 — AI-Based Smart Logistics and Accessibility Intelligence Platform for the North Eastern Region (NER)**, proposed by the Ministry of Development of North Eastern Region (MDoNER).
+
+The original problem statement describes a much broader logistics and accessibility platform for the North-Eastern regions of India, where challenging terrain and disruptions such as landslides, floods, and damaged roads can affect the movement of essential goods.
+
+At a platform level, the broader problem expects capabilities such as:
+
+- Monitoring road and bridge accessibility.
+- Identifying and predicting disruptions using relevant data, including weather and field inputs.
+- Optimizing routes when roads become unavailable.
+- Providing real-time visibility into vehicle movement and logistics operations.
+- Tracking vehicles and estimating delays.
+- Sending alerts about disruptions and route changes.
+- Supporting field reporting and operational dashboards, including offline support where connectivity is limited.
+
+Building this complete platform would involve several different systems and integrations. I chose to focus on one specific backend engineering problem within that larger challenge.
+
+### The Specific Problem I Focused On
+
+Consider a logistics network where many vehicles are transporting essential supplies across different locations. If a landslide blocks an important road, the routing system must identify which vehicles are actually using that road and calculate alternative routes for them.
+
+A straightforward approach would be to scan every active vehicle and check its route whenever a road disruption occurs. As the fleet grows, repeatedly scanning and recalculating routes for the entire fleet creates unnecessary computation.
+
+I therefore focused on this narrower problem:
+
+> **How can a routing system efficiently identify only the vehicles affected by a road disruption and reroute them, without unnecessarily processing the entire fleet?**
+
+This project is a focused implementation of the dynamic-routing component of the broader SIH problem statement. It does **not** implement the complete SIH platform or claim to provide live GPS tracking, weather-based disruption prediction, GIS dashboards, field reporting, or external logistics integrations.
+
 ## Problem
 
 Consider a logistics network with millions of simulated vehicles travelling across a road network.
@@ -248,8 +278,8 @@ These numbers describe one local run and one single-edge disruption. They are no
 
 ## Technology
 
-- Java 21
-- Spring Boot 3.4.2
+- Java
+- Spring Boot 
 - Spring MVC REST
 - A\* pathfinding
 - Mutable adjacency-list graph
