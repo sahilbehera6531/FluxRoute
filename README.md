@@ -1,4 +1,4 @@
-# Dynamic Graph Routing Engine
+# FluxRoute - Dynamic Graph Routing Engine
 
 A routing system for dynamically changing road networks that efficiently reroutes affected vehicles when roads become unavailable during active trips.
 
