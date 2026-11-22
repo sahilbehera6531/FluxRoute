@@ -294,6 +294,6 @@ These numbers describe one local run and one single-edge disruption. They are no
 
 The project focuses on dynamic road-network changes, selective rerouting, and bounded concurrent route computation. GIS visualization, live traffic prediction, weather prediction, business fleet operations, and external logistics integrations are outside the scope.
 
-## Status
+## 👨‍💻 Author
 
-Core dynamic-routing and large-fleet simulation are implemented. The REST simulation and recorded benchmark are available; live telemetry and virtual-thread communication are intentionally outside the current scope.
+**Sahil Behera**
